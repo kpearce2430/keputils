@@ -1,7 +1,7 @@
 package http_client_test
 
 import (
-	"github.com/keputils/http-client"
+	"github.com/kpearce2430/keputils/http-client"
 	"log"
 	"os"
 	"testing"

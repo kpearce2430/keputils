@@ -3,7 +3,7 @@ package couch_database
 import (
 	"fmt"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/keputils/utils"
+	"github.com/kpearce2430/keputils/utils"
 )
 
 type DatabaseConfig struct {

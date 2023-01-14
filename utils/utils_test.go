@@ -1,7 +1,7 @@
 package utils_test
 
 import (
-	"github.com/keputils/utils"
+	"github.com/kpearce2430/keputils/utils"
 	"os"
 	"testing"
 )

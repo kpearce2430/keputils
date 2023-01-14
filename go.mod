@@ -1,4 +1,4 @@
-module github.com/keputils
+module github.com/kpearce2430/keputils
 
 go 1.18
 

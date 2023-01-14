@@ -3,7 +3,7 @@ package couch_database_test
 import (
 	"context"
 	"fmt"
-	couch_database "github.com/keputils/couch-database"
+	couch_database "github.com/kpearce2430/keputils/couch-database"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
