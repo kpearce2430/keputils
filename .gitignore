@@ -13,3 +13,10 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Common local files
+.DS_Store
+.idea
+t
+t.sh
+tmp/
