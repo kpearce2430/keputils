@@ -40,3 +40,30 @@ func TestJulDate(t *testing.T) {
 
 	t.Logf("%s", utils.JulDate())
 }
+
+func TestExists(t *testing.T) {
+
+	ok, err := utils.Exists("somefile.txt")
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	switch {
+	case ok:
+		t.Error("There is no file called something.txt")
+	case !ok:
+		t.Log("File does not exists")
+	}
+
+	ok, err = utils.Exists("utils_test.go")
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	switch {
+	case ok:
+		t.Log("There is a file called utils_test.go")
+	case !ok:
+		t.Error("File does not exists")
+	}
+}
