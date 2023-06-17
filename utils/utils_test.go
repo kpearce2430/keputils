@@ -67,3 +67,37 @@ func TestExists(t *testing.T) {
 		t.Error("File does not exists")
 	}
 }
+
+func TestFloatParse(t *testing.T) {
+
+	type fpTests struct {
+		Input         string
+		Output        float64
+		ExpectedError string
+	}
+
+	tests := []fpTests{
+		{Input: "1.00", Output: 1.0, ExpectedError: ""},
+		{Input: "$1.00", Output: 1.0, ExpectedError: ""},
+		{Input: "Junk", Output: 0.0, ExpectedError: "strconv.ParseFloat: parsing \"Junk\": invalid syntax"},
+		{Input: "$1,000.99", Output: 1000.99, ExpectedError: ""},
+	}
+
+	for _, tc := range tests {
+		result, err := utils.FloatParse(tc.Input)
+		if err != nil {
+			if tc.ExpectedError == err.Error() {
+				continue
+			}
+			t.Log(err.Error())
+			t.Fail()
+			continue
+		}
+
+		if result != tc.Output {
+			t.Log("Bad result:", result)
+			t.Fail()
+		}
+
+	}
+}
