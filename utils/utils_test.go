@@ -101,3 +101,25 @@ func TestFloatParse(t *testing.T) {
 
 	}
 }
+
+func TestAsciiString(t *testing.T) {
+	type asciiTests struct {
+		Input  string
+		Output string
+	}
+
+	tests := []asciiTests{
+		{Input: "hello world", Output: "hello world"},
+		{Input: string([]byte{0x0f, 'a', 'b', 'c'}), Output: "abc"},
+	}
+
+	for _, tc := range tests {
+		result := utils.AsciiString(tc.Input)
+
+		if result != tc.Output {
+			t.Log("Bad result:", result)
+			t.Fail()
+		}
+
+	}
+}

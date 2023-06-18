@@ -32,3 +32,17 @@ func FloatParse(inputString string) (float64, error) {
 		return value, err
 	}
 }
+
+// AsciiString returns a string of only ascii characters.
+func AsciiString(str string) string {
+
+	byteString := []byte(str)
+	newByte := []byte("")
+	for i := 0; i < len(byteString); i++ {
+		if byteString[i] >= 32 && byteString[i] <= 127 {
+			newByte = append(newByte, byteString[i])
+		}
+	}
+
+	return string(newByte)
+}
