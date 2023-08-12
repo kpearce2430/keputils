@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/imroc/req/v3"
+	req "github.com/imroc/req/v3"
 	"github.com/kelseyhightower/envconfig"
 	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
 	"github.com/kpearce2430/keputils/http-client"
@@ -77,9 +77,7 @@ func CreateCouchDBServer(ctx context.Context) (testcontainers.Container, error) 
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return couchDBServer, nil
-
 }
 
 func (ds DatabaseStore[T]) CouchDBUp() bool {

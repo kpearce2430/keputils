@@ -24,7 +24,11 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	couchDBServer, _ := couch_database.CreateCouchDBServer(ctx)
-	defer couchDBServer.Terminate(ctx)
+	defer func() {
+		if err := couchDBServer.Terminate(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	ip, err := couchDBServer.Host(ctx)
 	if err != nil {
@@ -40,10 +44,10 @@ func TestMain(m *testing.M) {
 
 	log.Println(url)
 
-	os.Setenv("DATABASE_NAME", "tester")
-	os.Setenv("COUCHDB_URL", url)
-	os.Setenv("COUCHDB_USER", "admin")
-	os.Setenv("COUCHDB_PASSWORD", "password")
+	_ = os.Setenv("DATABASE_NAME", "tester")
+	_ = os.Setenv("COUCHDB_URL", url)
+	_ = os.Setenv("COUCHDB_USER", "admin")
+	_ = os.Setenv("COUCHDB_PASSWORD", "password")
 
 	m.Run()
 
@@ -86,9 +90,9 @@ func TestDataStore(t *testing.T) {
 	if err != nil {
 		return
 	}
-	os.Setenv("MY_COUCHDB_URL", url)
-	os.Setenv("MY_COUCHDB_USER", "admin")
-	os.Setenv("MY_COUCHDB_PASSWORD", "password")
+	t.Setenv("MY_COUCHDB_URL", url)
+	t.Setenv("MY_COUCHDB_USER", "admin")
+	t.Setenv("MY_COUCHDB_PASSWORD", "password")
 
 	databaseStore := couch_database.DataStore[TestDocument]("MY")
 

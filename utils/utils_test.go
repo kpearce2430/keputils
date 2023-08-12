@@ -10,12 +10,10 @@ var key = "ENV_KEY"
 var value = "ENV_VALUE"
 
 func TestMain(m *testing.M) {
-	// log.Println("Do stuff BEFORE the tests!")
-	os.Setenv(key, value)
-	exitVal := m.Run()
-	// log.Println("Do stuff AFTER the tests!")
-
-	os.Exit(exitVal)
+	if err := os.Setenv(key, value); err != nil {
+		panic(err)
+	}
+	os.Exit(m.Run())
 }
 
 func TestGetEnv(t *testing.T) {
@@ -71,55 +69,110 @@ func TestExists(t *testing.T) {
 func TestFloatParse(t *testing.T) {
 
 	type fpTests struct {
+		Description   string
 		Input         string
 		Output        float64
 		ExpectedError string
 	}
 
 	tests := []fpTests{
-		{Input: "1.00", Output: 1.0, ExpectedError: ""},
-		{Input: "$1.00", Output: 1.0, ExpectedError: ""},
-		{Input: "Junk", Output: 0.0, ExpectedError: "strconv.ParseFloat: parsing \"Junk\": invalid syntax"},
-		{Input: "$1,000.99", Output: 1000.99, ExpectedError: ""},
+		{Description: "Float 1.00", Input: "1.00", Output: 1.0, ExpectedError: ""},
+		{Description: "One Dollar", Input: "$1.00", Output: 1.0, ExpectedError: ""},
+		{Description: "Some Junk", Input: "Junk", Output: 0.0, ExpectedError: "strconv.ParseFloat: parsing \"Junk\": invalid syntax"},
+		{Description: "Thousand 99", Input: "$1,000.99", Output: 1000.99, ExpectedError: ""},
 	}
 
 	for _, tc := range tests {
-		result, err := utils.FloatParse(tc.Input)
-		if err != nil {
-			if tc.ExpectedError == err.Error() {
-				continue
+		t.Run(tc.Description, func(t *testing.T) {
+			result, err := utils.FloatParse(tc.Input)
+			if err != nil {
+				if tc.ExpectedError != err.Error() {
+					t.Log(err.Error())
+					t.Fail()
+				}
 			}
-			t.Log(err.Error())
-			t.Fail()
-			continue
-		}
 
-		if result != tc.Output {
-			t.Log("Bad result:", result)
-			t.Fail()
-		}
-
+			if result != tc.Output {
+				t.Log("Bad result:", result)
+				t.Fail()
+			}
+		})
 	}
 }
 
 func TestAsciiString(t *testing.T) {
 	type asciiTests struct {
-		Input  string
-		Output string
+		Description string
+		Input       string
+		Output      string
 	}
 
 	tests := []asciiTests{
-		{Input: "hello world", Output: "hello world"},
-		{Input: string([]byte{0x0f, 'a', 'b', 'c'}), Output: "abc"},
+		{Description: "Easy Test", Input: "hello world", Output: "hello world"},
+		{Description: "Some Ascii", Input: string([]byte{0x0f, 'a', 'b', 'c'}), Output: "abc"},
+		{Description: "French", Input: "Accéder", Output: "Accder"},
 	}
 
 	for _, tc := range tests {
-		result := utils.AsciiString(tc.Input)
+		t.Run(tc.Description, func(t *testing.T) {
+			result := utils.AsciiString(tc.Input)
 
-		if result != tc.Output {
-			t.Log("Bad result:", result)
-			t.Fail()
-		}
+			if result != tc.Output {
+				t.Log("Bad result:", result)
+				t.Fail()
+			}
+		})
+	}
+}
 
+func TestContains(t *testing.T) {
+
+	type testCase struct {
+		Description    string
+		List           []string
+		Search         string
+		ExpectedResult bool
+	}
+
+	testCases := []testCase{
+		{
+			Description:    "Happy Path",
+			List:           []string{"aaa", "bbb", "ccc"},
+			Search:         "aaa",
+			ExpectedResult: true,
+		},
+		{
+			Description:    "Close 1",
+			List:           []string{"aaa", "bbb", "ccc"},
+			Search:         "aaaa",
+			ExpectedResult: false,
+		},
+		{
+			Description:    "Close 2",
+			List:           []string{"aaa", "bbb", "ccc"},
+			Search:         "bb",
+			ExpectedResult: false,
+		},
+		{
+			Description:    "Not even close",
+			List:           []string{"aaa", "bbb", "ccc"},
+			Search:         "xyz",
+			ExpectedResult: false,
+		},
+		{
+			Description:    "Not even close",
+			List:           []string{"aaa", "bbb", "ccc"},
+			Search:         "",
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Description, func(t *testing.T) {
+			result := utils.Contains(tc.List, tc.Search)
+			if result != tc.ExpectedResult {
+				t.Fail()
+			}
+		})
 	}
 }
