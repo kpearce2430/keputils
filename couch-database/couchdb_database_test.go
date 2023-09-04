@@ -178,9 +178,34 @@ func TestCouchDBUp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	log.Printf("Document deleted new revision: %s", revision)
-
 	t.Log("all done")
+}
+
+func TestNotFound(t *testing.T) {
+
+	databaseStore := couch_database.New[TestDocument]("name", url, "admin", "password")
+	dbInfo, err := databaseStore.DatabaseExists()
+	if err != nil {
+		t.Log(err.Error())
+	}
+
+	if dbInfo == nil {
+		if !databaseStore.DatabaseCreate() {
+			t.Log("Unable to create database")
+			t.FailNow()
+		}
+	}
+
+	doc, err := databaseStore.DocumentGet("any-key")
+	if err != nil {
+		t.Log(err.Error())
+		t.FailNow()
+	}
+
+	if doc != nil {
+		t.Log(doc)
+		t.FailNow()
+	}
 
 }

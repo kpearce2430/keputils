@@ -11,6 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
+	"net/http"
 )
 
 type DatabaseStore[T interface{}] struct {
@@ -194,42 +195,31 @@ func (ds DatabaseStore[T]) DocumentCreate(key string, document *T) (string, erro
 }
 
 func (ds DatabaseStore[T]) DocumentGet(key string) (*T, error) {
-
-	// documentUrl := fmt.Sprintf("%s/%s/%s", ds.couchDBUrl, ds.databaseName, key)
-	// log.Println("DocumentGet(", key, ")")
 	documentUrl := ds.databaseConfig.DocumentURL(key)
-
 	var responseDocument T
-
-	// var couchDBResponse couchdb_client.CouchDBResponse
-	//	var err error
 
 	resp, err := ds.httpClient.R().
 		SetResult(&responseDocument).
 		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		// SetError(&err).
 		Get(documentUrl)
 
 	if err != nil {
-		// log.Println("Error:", err)
 		return nil, err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+
 	if resp.IsError() {
-
 		errString, err := resp.ToString()
-		// log.Println("Error:", errString)
-
 		if err != nil {
 			log.Println("DocumentGet(", key, ") ", err)
 			return nil, err
 		}
-
 		return nil, errors.New(errString)
 	}
-
 	return &responseDocument, nil
-
 }
 
 func (ds DatabaseStore[T]) DocumentUpdate(key string, revision string, document *T) (string, error) {
