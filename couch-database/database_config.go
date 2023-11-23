@@ -7,7 +7,7 @@ import (
 )
 
 type DatabaseConfig struct {
-	DatabaseName string `envconfig:"DATABASE_NAME",required:"true"`
+	DatabaseName string `envconfig:"COUCHDB_DATABASE",required:"true"`
 	CouchDBUrl   string `envconfig:"COUCHDB_URL",default:"http://localhost:5984"`
 	Username     string `envconfig:"COUCHDB_USER",default:"admin"`
 	Password     string `envconfig:"COUCHDB_PASSWORD",default:"password"`

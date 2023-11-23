@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 
 	log.Println(url)
 
-	_ = os.Setenv("DATABASE_NAME", "tester")
+	_ = os.Setenv("COUCHDB_DATABASE", "tester")
 	_ = os.Setenv("COUCHDB_URL", url)
 	_ = os.Setenv("COUCHDB_USER", "admin")
 	_ = os.Setenv("COUCHDB_PASSWORD", "password")
@@ -86,7 +86,7 @@ func TestDatabaseConfig(t *testing.T) {
 
 func TestDataStore(t *testing.T) {
 
-	err := os.Setenv("MY_DATABASE_NAME", "junk")
+	err := os.Setenv("MY_COUCHDB_DATABASE", "junk")
 	if err != nil {
 		return
 	}

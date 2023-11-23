@@ -17,8 +17,11 @@ func TestMain(m *testing.M) {
 
 func TestGetDefaultClient(t *testing.T) {
 
+	const defaultURL200 = "https://www.yahoo.com"                // "https://httpstat.us/200"
+	const defaultURL404 = "https://www.yahoo.com/blah/blah/blah" //"https://httpstat.us/404"
+
 	client := http_client.GetDefaultClient(10, true)
-	resp, err := client.R().Get("https://httpstat.us/200")
+	resp, err := client.R().Get(defaultURL200)
 
 	if err != nil {
 		t.Fatal(err)
@@ -29,8 +32,7 @@ func TestGetDefaultClient(t *testing.T) {
 		t.Fatal("Response Not 200")
 	}
 
-	// t.Logf("%+v\n", resp)
-	resp, err = client.R().Get("https://httpstat.us/404")
+	resp, err = client.R().Get(defaultURL404)
 	if err != nil {
 		t.Fatal(err)
 	}
