@@ -6,6 +6,9 @@ import (
 )
 
 func JulDate() string {
-	t := time.Now()
-	return fmt.Sprintf("%d%03d", t.Year(), t.YearDay())
+	return JulDateFromTime(time.Now())
+}
+
+func JulDateFromTime(tm time.Time) string {
+	return fmt.Sprintf("%d%03d", tm.Year(), tm.YearDay())
 }
