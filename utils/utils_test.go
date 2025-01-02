@@ -2,6 +2,7 @@ package utils_test
 
 import (
 	"github.com/kpearce2430/keputils/utils"
+	"github.com/segmentio/encoding/json"
 	"os"
 	"testing"
 )
@@ -175,4 +176,24 @@ func TestContains(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPrettyPrintJson(t *testing.T) {
+	type myJson struct {
+		Name     string `json:"name,omitempty"`
+		Age      int    `json:"age,omitempty"`
+		SomeBool bool   `json:"somebool,omitempty"`
+	}
+	myData := myJson{
+		Name:     "bob",
+		Age:      63,
+		SomeBool: true,
+	}
+
+	data, err := json.Marshal(myData)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	t.Log(utils.PrettyPrintJson(data))
 }
