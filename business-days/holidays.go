@@ -13,6 +13,19 @@ type HolidayDates struct {
 }
 
 func IsHoliday(current time.Time) bool {
+	holidays2026 := []HolidayDates{
+		{Year: 2026, Month: 12, Day: 25, Description: "Christmas"},
+		{Year: 2026, Month: 11, Day: 26, Description: "Thanksgiving"},
+		{Year: 2026, Month: 9, Day: 07, Description: "Labor Day"},
+		{Year: 2026, Month: 07, Day: 04, Description: "Independence Day"},
+		{Year: 2026, Month: 06, Day: 19, Description: "Juneteenth"},
+		{Year: 2026, Month: 05, Day: 26, Description: "Memorial Day"},
+		{Year: 2026, Month: 04, Day: 18, Description: "Good Friday"},
+		{Year: 2026, Month: 02, Day: 16, Description: "Washington's Birthday"},
+		{Year: 2026, Month: 01, Day: 19, Description: "Martin Luther King, Jr. Day"},
+		{Year: 2026, Month: 01, Day: 01, Description: "New Years Day"},
+	}
+
 	holidays2025 := []HolidayDates{
 		{Year: 2025, Month: 12, Day: 25, Description: "Christmas"},
 		{Year: 2025, Month: 11, Day: 27, Description: "Thanksgiving"},
@@ -114,6 +127,8 @@ func IsHoliday(current time.Time) bool {
 
 	var holidays []HolidayDates
 	switch current.Year() {
+	case 2026:
+		holidays = holidays2026
 	case 2025:
 		holidays = holidays2025
 	case 2024:
