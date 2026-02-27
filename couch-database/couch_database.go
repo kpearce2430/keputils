@@ -238,13 +238,13 @@ func (ds DatabaseStore[T]) DocumentCreate(key string, document *T) (string, erro
 		return "", errors.New("invalid document url")
 	}
 
-	body, err := json.Marshal(document)
+	data, err := json.Marshal(document)
 	if err != nil {
 		logrus.Error(err.Error())
 		return "", err
 	}
 
-	statusCode, body, err := ds.callCouchDB(http.MethodPut, documentUrl, body)
+	statusCode, body, err := ds.callCouchDB(http.MethodPut, documentUrl, data)
 	if err != nil {
 		logrus.Error(err.Error())
 		return "", err
