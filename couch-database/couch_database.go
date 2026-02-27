@@ -122,11 +122,12 @@ func CreateCouchDBServer(ctx context.Context) (testcontainers.Container, error) 
 	env["COUCHDB_PASSWORD"] = "password"
 
 	req := testcontainers.ContainerRequest{
-		Image:        "couchdb-server:3.1.0",
+		Image:        "couchdb:3.3.2",
 		ExposedPorts: []string{"5984/tcp"},
 		WaitingFor:   wait.ForListeningPort("5984/tcp"),
 		Env:          env,
 	}
+
 	couchDBServer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
