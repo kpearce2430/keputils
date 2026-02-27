@@ -2,6 +2,7 @@ package couch_database
 
 import (
 	"fmt"
+
 	"github.com/kelseyhightower/envconfig"
 	"github.com/kpearce2430/keputils/utils"
 )
@@ -14,7 +15,6 @@ type DatabaseConfig struct {
 }
 
 func NewDatabaseConfig(prefix string) (*DatabaseConfig, error) {
-
 	myprefix := prefix
 
 	// One last change to look for a prefix
@@ -26,10 +26,8 @@ func NewDatabaseConfig(prefix string) (*DatabaseConfig, error) {
 	err := envconfig.Process(myprefix, &dbConfig)
 
 	return &dbConfig, err
-
 }
 
 func (dc DatabaseConfig) DocumentURL(key string) string {
-
 	return fmt.Sprintf("%s/%s/%s", dc.CouchDBUrl, dc.DatabaseName, key)
 }

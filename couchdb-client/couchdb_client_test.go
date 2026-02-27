@@ -3,12 +3,13 @@ package couchdb_client_test
 import (
 	"context"
 	"fmt"
-	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
 	"os"
 	"testing"
+
+	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 var url string
@@ -68,5 +69,4 @@ func TestCouchDBUp(t *testing.T) {
 	if couchdbclient.CouchDBUp(url, &client) != true {
 		t.Fatal("CouchDB Not Up")
 	}
-
 }

@@ -46,7 +46,6 @@ func New(timeout time.Duration, transport *http.Transport) CouchDBHttpClient {
 	couchDBClient := CouchDBHttpClient{}
 
 	if transport == nil {
-
 		couchDBClient.httpClient = http.Client{
 			Timeout:   timeout * time.Second,
 			Transport: getDefaultTransport(),
@@ -58,9 +57,7 @@ func New(timeout time.Duration, transport *http.Transport) CouchDBHttpClient {
 			Transport: transport,
 		}
 	}
-
 	return couchDBClient
-
 }
 
 func CouchDBUp(CouchdbURL string, client *CouchDBHttpClient) bool {
@@ -101,10 +98,8 @@ func (cdb CouchDBHttpClient) CouchDBClientValid() bool {
 
 }
 
-//
 // CouchDBClient will only handle the byte level for the input and output data.
 // Marshalling will be left to the higher level callers.
-//
 func (cdb CouchDBHttpClient) CouchDBClient(action string, url string, user string, pswd string, headers map[string]string, data []byte) ([]byte, error) {
 
 	// Some initial setup for the client.

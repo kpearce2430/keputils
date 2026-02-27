@@ -1,24 +1,90 @@
 package couch_database
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	req "github.com/imroc/req/v3"
-	"github.com/kelseyhightower/envconfig"
-	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
-	"github.com/kpearce2430/keputils/http-client"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
+
+	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
+	"github.com/kpearce2430/keputils/http-client"
+	"github.com/segmentio/encoding/json"
+	"github.com/sirupsen/logrus"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
+)
+
+var (
+	errInvalidStatusResponse = errors.New("invalid status response")
 )
 
 type DatabaseStore[T interface{}] struct {
 	databaseConfig *DatabaseConfig
-	httpClient     *req.Client
+	httpClient     *http.Client
 }
 
+func (ds DatabaseStore[T]) callCouchDB(method string, u *url.URL, body []byte, qArgs ...string) (int, []byte, error) {
+	request := http.Request{
+		Method: method,
+		URL:    u,
+		Header: make(http.Header),
+	}
+
+	if len(body) > 0 {
+		request.Body = io.NopCloser(bytes.NewBuffer(body))
+	}
+
+	if len(qArgs) > 0 {
+		if len(qArgs)%2 == 1 {
+			logrus.Error("qargs must be even")
+			return -1, []byte{}, errors.New("qargs must be even")
+		}
+		q := request.URL.Query()
+		for i := 0; i < len(qArgs); i += 2 {
+			q.Add(qArgs[i], qArgs[i+1])
+		}
+		request.URL.RawQuery = q.Encode()
+	}
+
+	request.SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password)
+
+	response, err := ds.httpClient.Do(&request)
+	if err != nil {
+		logrus.Error(err.Error())
+		return -1, []byte{}, err
+	}
+
+	if response == nil {
+		logrus.Error("response is nil")
+		return -1, []byte{}, errors.New("response is nil")
+	}
+
+	if response.Body != nil {
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				logrus.Error(err.Error())
+			}
+		}(response.Body)
+	}
+
+	respBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		logrus.Error(err.Error())
+		return response.StatusCode, []byte{}, err
+	}
+	return response.StatusCode, respBody, nil
+}
+
+func (ds DatabaseStore[T]) DocumentURL(key string) (*url.URL, error) {
+	return url.Parse(ds.databaseConfig.DocumentURL(key))
+}
+
+/*
 func GetDataStoreByDatabaseName[T interface{}](databaseName string) (*DatabaseStore[T], error) {
 
 	var dbConfig DatabaseConfig
@@ -28,7 +94,7 @@ func GetDataStoreByDatabaseName[T interface{}](databaseName string) (*DatabaseSt
 		return nil, err
 	}
 
-	// log.Println("Config>>", dbConfig.Username, dbConfig.CouchDBUrl)
+
 	dbConfig.DatabaseName = databaseName
 
 	datastore := NewDataStore[T](&dbConfig)
@@ -36,26 +102,22 @@ func GetDataStoreByDatabaseName[T interface{}](databaseName string) (*DatabaseSt
 	return &datastore, nil
 
 }
+*/
 
 func NewDataStore[T interface{}](config *DatabaseConfig) DatabaseStore[T] {
-
-	return DatabaseStore[T]{config, http_client.GetDefaultClient(10, false)}
+	return DatabaseStore[T]{config, http_client.GetDefaultClient(10)}
 }
 
 func DataStore[T interface{}](prefix string) DatabaseStore[T] {
-
 	dbConfig, _ := NewDatabaseConfig(prefix)
 	dbStore := NewDataStore[T](dbConfig)
 	return dbStore
-
 }
 
 func New[T interface{}](name string, url string, user string, pswd string) DatabaseStore[T] {
-
 	dbConfig := DatabaseConfig{name, url, user, pswd}
-	dbStore := DatabaseStore[T]{&dbConfig, http_client.GetDefaultClient(10, false)}
+	dbStore := DatabaseStore[T]{&dbConfig, http_client.GetDefaultClient(10)}
 	return dbStore
-
 }
 
 // CreateCouchDBServer I put this here so that other test packages can use it.
@@ -82,15 +144,24 @@ func CreateCouchDBServer(ctx context.Context) (testcontainers.Container, error) 
 }
 
 func (ds DatabaseStore[T]) CouchDBUp() bool {
+	u, err := url.Parse(fmt.Sprintf("%s/_up", ds.databaseConfig.CouchDBUrl))
+	if err != nil {
+		logrus.Error(err.Error())
+		return false
+	}
 
-	url := fmt.Sprintf("%s/_up", ds.databaseConfig.CouchDBUrl)
+	statusCode, body, err := ds.callCouchDB(http.MethodGet, u, []byte{})
+	if statusCode != http.StatusOK {
+		return false
+	}
+
 	var result couchdbclient.CouchDBStatus
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		logrus.Error(err.Error())
+		return false
+	}
 
-	ds.httpClient.R().
-		SetResult(&result).
-		Get(url)
-
-	// return couchdb_client.CouchDBUp(ds.couchDBUrl, &ds.httpClient)
 	if result.Status == "ok" {
 		return true
 	}
@@ -98,193 +169,195 @@ func (ds DatabaseStore[T]) CouchDBUp() bool {
 }
 
 func (ds DatabaseStore[T]) GetConfig() string {
-
 	return fmt.Sprintf("%s : %s : %s :%s",
 		ds.databaseConfig.DatabaseName, ds.databaseConfig.CouchDBUrl,
 		ds.databaseConfig.Username, ds.databaseConfig.Password)
 }
 
 func (ds DatabaseStore[T]) DatabaseExists() (*CouchDatabaseInfo, error) {
+	createDatabaseURL, err := url.Parse(fmt.Sprintf("%s/%s", ds.databaseConfig.CouchDBUrl, ds.databaseConfig.DatabaseName))
+	if err != nil {
+		logrus.Error(err.Error())
+		return nil, err
+	}
+
+	statusCode, body, err := ds.callCouchDB(http.MethodGet, createDatabaseURL, []byte{})
+	if err != nil {
+		logrus.Error(err.Error())
+		return nil, err
+	}
+
+	switch statusCode {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		logrus.Info("Database does not exist")
+		return nil, nil
+	default:
+		logrus.Error("Invalid status response:", statusCode)
+		return nil, errInvalidStatusResponse
+	}
 
 	var couchDatabaseInfo CouchDatabaseInfo
-	createDatabaseURL := fmt.Sprintf("%s/%s", ds.databaseConfig.CouchDBUrl, ds.databaseConfig.DatabaseName)
-	// fmt.Println("url>>", createDatabaseURL)
-
-	resp, err := ds.httpClient.R().
-		SetResult(&couchDatabaseInfo).
-		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		// SetError(&err).
-		Get(createDatabaseURL)
-
+	err = json.Unmarshal(body, &couchDatabaseInfo)
 	if err != nil {
-		fmt.Println("Get>>", err.Error())
+		logrus.Error(err.Error())
 		return nil, err
 	}
-
-	if resp.IsError() {
-		// fmt.Printf("Is Error>> Database %s returns %v", ds.GetConfig(), resp.Status)
-		err := fmt.Errorf("Database %s returns %v", ds.GetConfig(), resp.Status)
-		return nil, err
-	}
-
-	// log.Println("resp>", resp.Status)
-	// log.Println("data>>", couchDatabaseInfo)
-
 	return &couchDatabaseInfo, nil
-
 }
 
 func (ds DatabaseStore[T]) DatabaseCreate() bool {
+	createDatabaseURL, err := url.Parse(fmt.Sprintf("%s/%s", ds.databaseConfig.CouchDBUrl, ds.databaseConfig.DatabaseName))
+	if err != nil {
+		logrus.Error(err.Error())
+		return false
+	}
 
-	createDatabaseURL := fmt.Sprintf("%s/%s", ds.databaseConfig.CouchDBUrl, ds.databaseConfig.DatabaseName)
+	statusCode, body, err := ds.callCouchDB(http.MethodPut, createDatabaseURL, []byte{})
+	if err != nil {
+		logrus.Error(err.Error())
+		return false
+	}
+
+	switch statusCode {
+	case http.StatusOK, http.StatusCreated:
+	default:
+		logrus.Error("Invalid response:", statusCode)
+		return false
+
+	}
 
 	var couchDBResponse couchdbclient.CouchDBResponse
-	//	var err error
-
-	resp, err := ds.httpClient.R().
-		SetResult(&couchDBResponse).
-		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		// SetError(&err).
-		Put(createDatabaseURL)
-
+	err = json.Unmarshal(body, &couchDBResponse)
 	if err != nil {
-		log.Println(err)
+		logrus.Error(err.Error())
 		return false
 	}
-
-	if resp.IsError() {
-		log.Println(resp.ToString())
-		return false
-	}
-
+	logrus.Info("Created:", couchDBResponse)
 	return couchDBResponse.Ok
-
 }
 
 func (ds DatabaseStore[T]) DocumentCreate(key string, document *T) (string, error) {
-
-	documentUrl := fmt.Sprintf("%s/%s/%s", ds.databaseConfig.CouchDBUrl, ds.databaseConfig.DatabaseName, key)
-
-	var couchDBResponse couchdbclient.CouchDBResponse
-	//	var err error
-
-	resp, err := ds.httpClient.R().
-		SetResult(&couchDBResponse).
-		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		SetBodyJsonMarshal(document).
-		// SetError(&err).
-		Put(documentUrl)
-
+	documentUrl, err := ds.DocumentURL(key)
 	if err != nil {
-		log.Println(err)
+		return "", errors.New("invalid document url")
+	}
+
+	body, err := json.Marshal(document)
+	if err != nil {
+		logrus.Error(err.Error())
 		return "", err
 	}
 
-	if resp.IsError() {
-		errString, err := resp.ToString()
-
-		if err != nil {
-			log.Println(err)
-			return "", err
-		}
-
-		return "", errors.New(errString)
+	statusCode, body, err := ds.callCouchDB(http.MethodPut, documentUrl, body)
+	if err != nil {
+		logrus.Error(err.Error())
+		return "", err
 	}
 
+	switch statusCode {
+	case http.StatusOK, http.StatusCreated:
+	default:
+		logrus.Error("Invalid response:", statusCode)
+		return "", errInvalidStatusResponse
+	}
+
+	var couchDBResponse couchdbclient.CouchDBResponse
+	err = json.Unmarshal(body, &couchDBResponse)
+	if err != nil {
+		logrus.Error(err.Error())
+		return "", err
+	}
 	return couchDBResponse.Rev, nil
 }
 
 func (ds DatabaseStore[T]) DocumentGet(key string) (*T, error) {
-	documentUrl := ds.databaseConfig.DocumentURL(key)
-	var responseDocument T
+	documentUrl, err := ds.DocumentURL(key)
+	if err != nil {
+		logrus.Error("could not create document url for key:", key)
+		return nil, errors.New("could not create document url")
+	}
 
-	resp, err := ds.httpClient.R().
-		SetResult(&responseDocument).
-		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		Get(documentUrl)
-
+	statusCode, body, err := ds.callCouchDB(http.MethodGet, documentUrl, []byte{})
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	}
-
-	if resp.IsError() {
-		errString, err := resp.ToString()
+	var responseDocument T
+	switch statusCode {
+	case http.StatusOK:
+		err = json.Unmarshal(body, &responseDocument)
 		if err != nil {
-			log.Println("DocumentGet(", key, ") ", err)
+			logrus.Error(err.Error())
 			return nil, err
 		}
-		return nil, errors.New(errString)
+	case http.StatusNotFound:
+		return nil, nil
+	default:
+		logrus.Error("Invalid status response:", statusCode)
+		return nil, errInvalidStatusResponse
 	}
+
 	return &responseDocument, nil
 }
 
 func (ds DatabaseStore[T]) DocumentUpdate(key string, revision string, document *T) (string, error) {
-
-	documentUrl := ds.databaseConfig.DocumentURL(key)
-
-	var couchDBResponse couchdbclient.CouchDBResponse
-	//	var err error
-
-	resp, err := ds.httpClient.R().
-		SetResult(&couchDBResponse).
-		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		SetQueryParam("_rev", revision).
-		SetBodyJsonMarshal(document).
-		Put(documentUrl)
-
+	documentUrl, err := ds.DocumentURL(key)
 	if err != nil {
-		log.Println(err)
+		logrus.Error("could not create document url for key:", err.Error())
 		return "", err
 	}
 
-	if resp.IsError() {
-		errString, err := resp.ToString()
-
-		if err != nil {
-			log.Println(err)
-			return "", err
-		}
-
-		return "", errors.New(errString)
+	data, err := json.Marshal(document)
+	if err != nil {
+		logrus.Error(err.Error())
+		return "", err
 	}
 
-	return couchDBResponse.Rev, nil
+	statusCode, body, err := ds.callCouchDB(http.MethodPut, documentUrl, data, "_rev", revision)
+	if err != nil {
+		return "", err
+	}
+
+	switch statusCode {
+	case http.StatusOK, http.StatusCreated:
+		var couchDBResponse couchdbclient.CouchDBResponse
+		err = json.Unmarshal(body, &couchDBResponse)
+		if err != nil {
+			logrus.Error(err.Error())
+			return "", err
+		}
+		return couchDBResponse.Rev, nil
+	}
+	logrus.Error("Invalid status response:", statusCode)
+	return "", errInvalidStatusResponse
 
 }
 
 func (ds DatabaseStore[T]) DocumentDelete(key string, revision string) (string, error) {
-
-	documentUrl := ds.databaseConfig.DocumentURL(key)
-
-	var couchDBResponse couchdbclient.CouchDBResponse
-	//	var err error
-
-	resp, err := ds.httpClient.R().
-		SetResult(&couchDBResponse).
-		SetBasicAuth(ds.databaseConfig.Username, ds.databaseConfig.Password).
-		SetQueryParam("rev", revision).
-		Delete(documentUrl)
-
+	documentUrl, err := ds.DocumentURL(key)
 	if err != nil {
-		log.Println(err)
+		logrus.Error("could not create document url for key:", err.Error())
 		return "", err
 	}
 
-	if resp.IsError() {
-		errString, err := resp.ToString()
-
-		if err != nil {
-			log.Println(err)
-			return "", err
-		}
-
-		return "", errors.New(errString)
+	statusCode, body, err := ds.callCouchDB(http.MethodDelete, documentUrl, []byte{}, "rev", revision)
+	if err != nil {
+		logrus.Error(err.Error())
+		return "", err
 	}
 
-	return couchDBResponse.Rev, nil
+	switch statusCode {
+	case http.StatusOK, http.StatusCreated:
+		var couchDBResponse couchdbclient.CouchDBResponse
+		err = json.Unmarshal(body, &couchDBResponse)
+		if err != nil {
+			logrus.Error(err.Error())
+			return "", err
+		}
+		return couchDBResponse.Rev, nil
+	}
 
+	logrus.Error("Invalid status response:", statusCode)
+	return "", errInvalidStatusResponse
 }

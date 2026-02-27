@@ -3,11 +3,12 @@ package couch_database_test
 import (
 	"context"
 	"fmt"
-	couch_database "github.com/kpearce2430/keputils/couch-database"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"testing"
+
+	couchdatabase "github.com/kpearce2430/keputils/couch-database"
+	"github.com/stretchr/testify/assert"
 )
 
 type TestDocument struct {
@@ -20,10 +21,9 @@ type TestDocument struct {
 var url string
 
 func TestMain(m *testing.M) {
-
 	ctx := context.Background()
 
-	couchDBServer, _ := couch_database.CreateCouchDBServer(ctx)
+	couchDBServer, _ := couchdatabase.CreateCouchDBServer(ctx)
 	defer func() {
 		if err := couchDBServer.Terminate(ctx); err != nil {
 			log.Fatal(err)
@@ -54,8 +54,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestDatabaseConfig(t *testing.T) {
-
-	dbConfig, err := couch_database.NewDatabaseConfig("")
+	dbConfig, err := couchdatabase.NewDatabaseConfig("")
 
 	assert.Nil(t, err, fmt.Sprintf("%+v", err))
 
@@ -64,7 +63,7 @@ func TestDatabaseConfig(t *testing.T) {
 	assert.Equal(t, "admin", dbConfig.Username, "couchdb username mismatch")
 	assert.Equal(t, "password", dbConfig.Password, "couchdb password mismatch")
 
-	databaseStore := couch_database.NewDataStore[TestDocument](dbConfig)
+	databaseStore := couchdatabase.NewDataStore[TestDocument](dbConfig)
 
 	assert.NotNil(t, databaseStore, "database store is nil")
 
@@ -81,20 +80,19 @@ func TestDatabaseConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func TestDataStore(t *testing.T) {
-
 	err := os.Setenv("MY_COUCHDB_DATABASE", "junk")
 	if err != nil {
+		t.Error(err)
 		return
 	}
 	t.Setenv("MY_COUCHDB_URL", url)
 	t.Setenv("MY_COUCHDB_USER", "admin")
 	t.Setenv("MY_COUCHDB_PASSWORD", "password")
 
-	databaseStore := couch_database.DataStore[TestDocument]("MY")
+	databaseStore := couchdatabase.DataStore[TestDocument]("MY")
 
 	assert.NotNil(t, databaseStore, "database store is nil")
 
@@ -115,23 +113,22 @@ func TestDataStore(t *testing.T) {
 }
 
 func TestDatabaseStore_CouchDBUp(t *testing.T) {
-
-	databaseStore := couch_database.New[TestDocument]("name", url, "admin", "password")
+	databaseStore := couchdatabase.New[TestDocument]("name", url, "admin", "password")
 	if databaseStore.CouchDBUp() == true {
 		log.Println("Datastore Couch DB is Up")
 	} else {
 		t.Fatal("Couchdb not up")
 	}
 }
-func TestCouchDBUp(t *testing.T) {
 
-	databaseStore := couch_database.New[TestDocument]("name", url, "admin", "password")
+func TestCouchDBUp(t *testing.T) {
+	databaseStore := couchdatabase.New[TestDocument]("name", url, "admin", "password")
 
 	if databaseStore.DatabaseCreate() != true {
 		t.Fatal("Error creating a database")
 	}
 
-	log.Printf("Database created")
+	t.Log("Database created")
 
 	testDocument := TestDocument{Name: "name", Value: 1}
 
@@ -141,7 +138,7 @@ func TestCouchDBUp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Document created revision: %s", revision)
+	t.Logf("Document created revision: %s", revision)
 
 	getDocument, err := databaseStore.DocumentGet("key")
 
@@ -149,7 +146,7 @@ func TestCouchDBUp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("%s, %s, %s, %d", getDocument.Id, getDocument.Rev, getDocument.Name, getDocument.Value)
+	t.Logf("%s, %s, %s, %d", getDocument.Id, getDocument.Rev, getDocument.Name, getDocument.Value)
 
 	getDocument.Name = "New Name"
 
@@ -184,7 +181,7 @@ func TestCouchDBUp(t *testing.T) {
 
 func TestNotFound(t *testing.T) {
 
-	databaseStore := couch_database.New[TestDocument]("name", url, "admin", "password")
+	databaseStore := couchdatabase.New[TestDocument]("name", url, "admin", "password")
 	dbInfo, err := databaseStore.DatabaseExists()
 	if err != nil {
 		t.Log(err.Error())
