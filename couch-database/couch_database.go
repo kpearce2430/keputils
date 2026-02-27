@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/kelseyhightower/envconfig"
 	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
 	"github.com/kpearce2430/keputils/http-client"
 	"github.com/segmentio/encoding/json"
@@ -84,9 +85,7 @@ func (ds DatabaseStore[T]) DocumentURL(key string) (*url.URL, error) {
 	return url.Parse(ds.databaseConfig.DocumentURL(key))
 }
 
-/*
 func GetDataStoreByDatabaseName[T interface{}](databaseName string) (*DatabaseStore[T], error) {
-
 	var dbConfig DatabaseConfig
 	err := envconfig.Process("", &dbConfig)
 	if err != nil {
@@ -94,15 +93,10 @@ func GetDataStoreByDatabaseName[T interface{}](databaseName string) (*DatabaseSt
 		return nil, err
 	}
 
-
 	dbConfig.DatabaseName = databaseName
-
 	datastore := NewDataStore[T](&dbConfig)
-
 	return &datastore, nil
-
 }
-*/
 
 func NewDataStore[T interface{}](config *DatabaseConfig) DatabaseStore[T] {
 	return DatabaseStore[T]{config, http_client.GetDefaultClient(10)}

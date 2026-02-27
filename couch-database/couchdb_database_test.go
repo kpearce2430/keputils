@@ -146,6 +146,10 @@ func TestCouchDBUp(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if getDocument == nil {
+		t.Fatal("Document not found")
+	}
+
 	t.Logf("%s, %s, %s, %d", getDocument.Id, getDocument.Rev, getDocument.Name, getDocument.Value)
 
 	getDocument.Name = "New Name"
@@ -162,6 +166,10 @@ func TestCouchDBUp(t *testing.T) {
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if getDocument == nil {
+		t.Fatal("Document not found")
 	}
 
 	couchDatabaseInfo, err := databaseStore.DatabaseExists()
@@ -205,4 +213,20 @@ func TestNotFound(t *testing.T) {
 		t.FailNow()
 	}
 
+}
+
+func TestGetDataStoreByDatabaseName(t *testing.T) {
+	dbName, ok := os.LookupEnv("COUCHDB_DATABASE")
+	if !ok {
+		t.Error("COUCHDB_DATABASE not set")
+		return
+	}
+	db, err := couchdatabase.GetDataStoreByDatabaseName[TestDocument](dbName)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	if db == nil {
+		t.Error("db is nil")
+	}
 }
