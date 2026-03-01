@@ -185,10 +185,10 @@ func (ds DatabaseStore[T]) DatabaseExists() (*CouchDatabaseInfo, error) {
 	switch statusCode {
 	case http.StatusOK:
 	case http.StatusNotFound:
-		logrus.Info("Database does not exist")
+		logrus.Info("Database does not exist: ", ds.databaseConfig.DatabaseName)
 		return nil, nil
 	default:
-		logrus.Error("Invalid status response:", statusCode)
+		logrus.Error("Invalid status response:", ds.databaseConfig.DatabaseName, " : ", statusCode)
 		return nil, errInvalidStatusResponse
 	}
 
@@ -228,7 +228,7 @@ func (ds DatabaseStore[T]) DatabaseCreate() bool {
 		logrus.Error(err.Error())
 		return false
 	}
-	logrus.Info("Created:", couchDBResponse)
+	logrus.Info("Created:", ds.databaseConfig.DatabaseName, " [", couchDBResponse.Ok, "]")
 	return couchDBResponse.Ok
 }
 
