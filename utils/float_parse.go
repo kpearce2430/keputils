@@ -3,6 +3,8 @@ package utils
 import (
 	"strconv"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 // FloatParse common float parser
@@ -45,4 +47,16 @@ func AsciiString(str string) string {
 	}
 
 	return string(newByte)
+}
+
+// IntInRange check to see if an int is between two numbers.
+func IntInRange(num, min, max int) bool {
+	if min >= max {
+		logrus.Errorf("invalid arguments min %d >= max %d", min, max)
+		return false
+	}
+	if num >= min && num <= max {
+		return true
+	}
+	return false
 }

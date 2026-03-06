@@ -1,10 +1,11 @@
 package utils_test
 
 import (
-	"github.com/kpearce2430/keputils/utils"
-	"github.com/segmentio/encoding/json"
 	"os"
 	"testing"
+
+	"github.com/kpearce2430/keputils/utils"
+	"github.com/segmentio/encoding/json"
 )
 
 var key = "ENV_KEY"
@@ -18,7 +19,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetEnv(t *testing.T) {
-
 	var badKey = "XKDNVMCKAW"
 	var goodValue = "good"
 
@@ -196,4 +196,34 @@ func TestPrettyPrintJson(t *testing.T) {
 		return
 	}
 	t.Log(utils.PrettyPrintJson(data))
+}
+
+func TestIntInRange(t *testing.T) {
+
+	type intTests struct {
+		Description string
+		Min         int
+		Max         int
+		Num         int
+		Expected    bool
+	}
+
+	tests := []intTests{
+		{Description: "Equals", Min: 1, Max: 1, Num: 1, Expected: false},
+		{Description: "At Min", Min: 1, Max: 3, Num: 1, Expected: true},
+		{Description: "In Between", Min: 1, Max: 3, Num: 2, Expected: true},
+		{Description: "At Max", Min: 1, Max: 3, Num: 3, Expected: true},
+		{Description: "Above", Min: 1, Max: 3, Num: 20, Expected: false},
+		{Description: "Below", Min: 2, Max: 4, Num: 1, Expected: false},
+		{Description: "Min > Max ", Min: 4, Max: 2, Num: 1, Expected: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Description, func(t *testing.T) {
+			result := utils.IntInRange(tc.Num, tc.Min, tc.Max)
+			if result != tc.Expected {
+				t.Fail()
+			}
+		})
+	}
 }
