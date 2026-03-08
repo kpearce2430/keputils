@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	couchdatabase "github.com/kpearce2430/keputils/couch-database"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,36 +19,21 @@ type TestDocument struct {
 	Value int64
 }
 
-var url string
+// var url string
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	couchDBServer, _ := couchdatabase.CreateCouchDBServer(ctx)
+	couchDBServer, err := couchdatabase.StartCouchDBServer(ctx, "tester")
+	if err != nil {
+		logrus.Fatal(err)
+		return
+	}
 	defer func() {
-		if err := couchDBServer.Terminate(ctx); err != nil {
-			log.Fatal(err)
+		if err = couchDBServer.Terminate(ctx); err != nil {
+			logrus.Error(err)
 		}
 	}()
-
-	ip, err := couchDBServer.Host(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mappedPort, err := couchDBServer.MappedPort(ctx, "5984")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	url = fmt.Sprintf("http://%s:%s", ip, mappedPort.Port())
-
-	log.Println(url)
-
-	_ = os.Setenv("COUCHDB_DATABASE", "tester")
-	_ = os.Setenv("COUCHDB_URL", url)
-	_ = os.Setenv("COUCHDB_USER", "admin")
-	_ = os.Setenv("COUCHDB_PASSWORD", "password")
 
 	m.Run()
 
@@ -55,6 +41,12 @@ func TestMain(m *testing.M) {
 
 func TestDatabaseConfig(t *testing.T) {
 	dbConfig, err := couchdatabase.NewDatabaseConfig("")
+
+	url, ok := os.LookupEnv("COUCHDB_URL")
+	if !ok {
+		t.Error("COUCHDB_URL not set")
+		return
+	}
 
 	assert.Nil(t, err, fmt.Sprintf("%+v", err))
 
@@ -88,9 +80,28 @@ func TestDataStore(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
+	url, ok := os.LookupEnv("COUCHDB_URL")
+	if !ok {
+		t.Error("COUCHDB_URL not set")
+		return
+	}
+
+	admin, ok := os.LookupEnv("COUCHDB_USER")
+	if !ok {
+		t.Error("COUCHDB_USER not set")
+		return
+	}
+
+	pswd, ok := os.LookupEnv("COUCHDB_PASSWORD")
+	if !ok {
+		t.Error("COUCHDB_PASSWORD not set")
+		return
+	}
+
 	t.Setenv("MY_COUCHDB_URL", url)
-	t.Setenv("MY_COUCHDB_USER", "admin")
-	t.Setenv("MY_COUCHDB_PASSWORD", "password")
+	t.Setenv("MY_COUCHDB_USER", admin)
+	t.Setenv("MY_COUCHDB_PASSWORD", pswd)
 
 	databaseStore := couchdatabase.DataStore[TestDocument]("MY")
 
@@ -113,6 +124,13 @@ func TestDataStore(t *testing.T) {
 }
 
 func TestDatabaseStore_CouchDBUp(t *testing.T) {
+
+	url, ok := os.LookupEnv("COUCHDB_URL")
+	if !ok {
+		t.Error("COUCHDB_URL not set")
+		return
+	}
+
 	databaseStore := couchdatabase.New[TestDocument]("name", url, "admin", "password")
 	if databaseStore.CouchDBUp() == true {
 		log.Println("Datastore Couch DB is Up")
@@ -122,6 +140,13 @@ func TestDatabaseStore_CouchDBUp(t *testing.T) {
 }
 
 func TestCouchDBUp(t *testing.T) {
+
+	url, ok := os.LookupEnv("COUCHDB_URL")
+	if !ok {
+		t.Error("COUCHDB_URL not set")
+		return
+	}
+
 	databaseStore := couchdatabase.New[TestDocument]("name", url, "admin", "password")
 
 	if databaseStore.DatabaseCreate() != true {
@@ -188,6 +213,12 @@ func TestCouchDBUp(t *testing.T) {
 }
 
 func TestNotFound(t *testing.T) {
+
+	url, ok := os.LookupEnv("COUCHDB_URL")
+	if !ok {
+		t.Error("COUCHDB_URL not set")
+		return
+	}
 
 	databaseStore := couchdatabase.New[TestDocument]("name", url, "admin", "password")
 	dbInfo, err := databaseStore.DatabaseExists()

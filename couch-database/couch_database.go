@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/kelseyhightower/envconfig"
 	couchdbclient "github.com/kpearce2430/keputils/couchdb-client"
@@ -118,6 +119,7 @@ func New[T interface{}](name string, url string, user string, pswd string) Datab
 func CreateCouchDBServer(ctx context.Context) (testcontainers.Container, error) {
 	env := make(map[string]string)
 
+	// TODO: Read from env or config.
 	env["COUCHDB_USER"] = "admin"
 	env["COUCHDB_PASSWORD"] = "password"
 
@@ -135,6 +137,43 @@ func CreateCouchDBServer(ctx context.Context) (testcontainers.Container, error) 
 	if err != nil {
 		log.Fatal(err)
 	}
+	return couchDBServer, nil
+}
+
+// StartCouchDBServer I put this here so that other test packages can use it.  Don't forget to defer the shutdown.
+func StartCouchDBServer(ctx context.Context, defaultDB string) (testcontainers.Container, error) {
+	couchDBServer, err := CreateCouchDBServer(ctx)
+	if err != nil {
+		logrus.Fatal(err)
+		return nil, err
+	}
+
+	err = couchDBServer.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set up the couchdb environment
+	cdbIP, err := couchDBServer.Host(ctx)
+	if err != nil {
+		logrus.Fatal(err)
+		return nil, err
+	}
+
+	cdbMappedPort, err := couchDBServer.MappedPort(ctx, "5984")
+	if err != nil {
+		logrus.Fatal(err)
+		return nil, err
+	}
+
+	couchDbUrl := fmt.Sprintf("http://%s:%s", cdbIP, cdbMappedPort.Port())
+
+	logrus.Info("CouchDB URL", couchDbUrl)
+
+	_ = os.Setenv("COUCHDB_URL", couchDbUrl)
+	_ = os.Setenv("COUCHDB_USER", "admin")
+	_ = os.Setenv("COUCHDB_PASSWORD", "password")
+	_ = os.Setenv("COUCHDB_DATABASE", defaultDB)
 	return couchDBServer, nil
 }
 
