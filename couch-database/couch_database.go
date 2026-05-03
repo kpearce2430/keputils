@@ -140,7 +140,7 @@ func CreateCouchDBServer(ctx context.Context) (testcontainers.Container, error) 
 	return couchDBServer, nil
 }
 
-// StartCouchDBServer I put this here so that other test packages can use it.  Don't forget to defer the shutdown.
+// StartCouchDBServer I put this here so that other test packages can use it.  Remember to defer the shutdown.
 func StartCouchDBServer(ctx context.Context, defaultDB string) (testcontainers.Container, error) {
 	couchDBServer, err := CreateCouchDBServer(ctx)
 	if err != nil {
@@ -168,7 +168,7 @@ func StartCouchDBServer(ctx context.Context, defaultDB string) (testcontainers.C
 
 	couchDbUrl := fmt.Sprintf("http://%s:%s", cdbIP, cdbMappedPort.Port())
 
-	logrus.Info("CouchDB URL", couchDbUrl)
+	logrus.Debug("CouchDB URL: ", couchDbUrl)
 
 	_ = os.Setenv("COUCHDB_URL", couchDbUrl)
 	_ = os.Setenv("COUCHDB_USER", "admin")
