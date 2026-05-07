@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	_ "embed"
 	"os"
 	"testing"
 
@@ -9,6 +10,11 @@ import (
 	"github.com/kpearce2430/keputils/postgres"
 	"github.com/sirupsen/logrus"
 )
+
+//var (
+//	//go:embed testdata/lookups.csv
+//	lookupsCSV string
+//)
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -56,6 +62,45 @@ AND table_type = 'BASE TABLE';
 		tables = append(tables, table)
 		num++
 	}
-
 	t.Log(tables)
+}
+
+func TestPostgres_LoadTableWithHeaders(t *testing.T) {
+	ctx := context.Background()
+	pgxConn, err := pgxpool.New(ctx, os.Getenv("PG_DATABASE_URL"))
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	err = postgres.TruncateTable(pgxConn, "lookups")
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	err = postgres.LoadTableWithHeaders(ctx, pgxConn, "lookups", "./testdata/lookups.csv")
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+
+	selectStatement := `SELECT symbol,security FROM lookups;`
+	rows, err := pgxConn.Query(ctx, selectStatement)
+	defer rows.Close()
+	if err != nil {
+		logrus.Error(err.Error())
+		return
+	}
+
+	// Iterate through the result set
+	num := 0
+	for rows.Next() {
+		var symbol, security string
+		err = rows.Scan(&symbol, &security)
+		if err != nil {
+			logrus.Error(err.Error())
+			return
+		}
+		t.Log("Symbol:", symbol, " Security:", security)
+		num++
+	}
 }

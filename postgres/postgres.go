@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	_ "embed"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"os"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kpearce2430/keputils/utils"
 	"github.com/sirupsen/logrus"
@@ -14,8 +16,14 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-//go:embed sql/init_db.sql
-var initDB string
+const errFormat = "postgres error: %v"
+
+var (
+	//go:embed sql/init_db.sql
+	initDB string
+
+	errNoRowsFromLoadRow = errors.New("no rows from load row")
+)
 
 func ConnectToPostgres() (*pgxpool.Pool, error) {
 	pgxConn, err := pgxpool.New(context.Background(), utils.GetEnv("PG_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/postgres"))
@@ -138,5 +146,61 @@ func TruncateTable(pgxConn *pgxpool.Pool, table string) error {
 	if _, err := pgxConn.Exec(context.Background(), truncateSql); err != nil {
 		return err
 	}
+	return nil
+}
+
+// LoadRecords reads a CSV file and loads it into a multidimensional array.
+func LoadRecords(fileName string) ([][]any, error) {
+	var results [][]any
+	file, err := os.Open(fileName)
+	if err != nil {
+		return results, fmt.Errorf(errFormat, err)
+	}
+	defer file.Close()
+
+	// Create a new CSV reader.
+	reader := csv.NewReader(file)
+
+	// Read all the records.
+	records, err := reader.ReadAll()
+	if err != nil {
+		return results, fmt.Errorf(errFormat, err)
+	}
+
+	// Iterate over the records and print them.
+	for _, record := range records {
+		r := make([]any, len(record))
+		for i := range record {
+			r[i] = record[i]
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// LoadTableWithHeaders will load a CSV into the appropriate table.  The CSV filename and table name must be the same and the
+// first row of the CSV file must match the column names.
+func LoadTableWithHeaders(ctx context.Context, pgxConn *pgxpool.Pool, tableName, fileName string) error {
+	//
+	records, err := LoadRecords(fileName)
+	if err != nil {
+		return fmt.Errorf(errFormat, err)
+	}
+
+	if len(records) <= 1 {
+		return errNoRowsFromLoadRow
+	}
+
+	var headers []string
+	for _, header := range records[0] {
+		headers = append(headers, header.(string))
+	}
+
+	count, err := pgxConn.CopyFrom(ctx, pgx.Identifier{tableName}, headers, pgx.CopyFromRows(records[1:]))
+
+	if err != nil {
+		return fmt.Errorf(errFormat, err)
+	}
+	logrus.Info("Loaded ", count, " rows into ", tableName)
 	return nil
 }
